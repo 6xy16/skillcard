@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "skillcard"
+version = "0.1.0"
+description = "Generate a beautiful quality score card and badge for your Agent Skill (SKILL.md)"
+readme = "README.md"
+requires-python = ">=3.9"
+license = "MIT"
+license-files = ["LICENSE"]
+keywords = ["agent-skills", "skill-md", "badge", "llm", "claude-code", "cursor"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Topic :: Software Development :: Quality Assurance",
+]
+dependencies = [
+    "Pillow>=10.0",
+    "PyYAML>=6.0",
+]
+
+[project.optional-dependencies]
+llm = ["openai>=1.0"]
+dev = ["pytest>=8.0", "ruff>=0.5"]
+
+[project.scripts]
+skillcard = "skillcard.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/6xy16/skillcard"
+Repository = "https://github.com/6xy16/skillcard"
+Documentation = "https://github.com/6xy16/skillcard#readme"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
