@@ -10,6 +10,8 @@
 
 给 Agent Skill（SKILL.md）生成质量评分卡和 README 徽章——让"晒分数"成为技能包生态的社交货币。
 
+![Skill Quality Card](docs/card.png)
+
 ---
 
 ## What you get
