@@ -8,6 +8,7 @@ dist/
 .pytest_cache/
 .ruff_cache/
 skillcard-report/
+*-report/
 
 # Local secrets (keep a documented .env.example if needed)
 .env

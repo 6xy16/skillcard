@@ -39,17 +39,15 @@ def render_badge(result: EvalResult, out_path: str | Path) -> Path:
     message = f"{result.grade} | {result.total_score:.0f}/100"
     label_w = int(CHAR_W * len("skillcard")) + 12
     msg_w = int(CHAR_W * len(message)) + 12
-    svg = SVG_TEMPLATE.format(
-        width=label_w + msg_w,
-        label_w=label_w,
-        msg_w=msg_w,
-        label_x=label_w * 5,
-        msg_x=label_w * 10 + msg_w * 5,
-        label_len=(label_w - 10) * 10,
-        msg_len=(msg_w - 10) * 10,
-        color=grade_color(result.grade),
-        message=message,
-    )
+    svg = SVG_TEMPLATE.replace("{width}", str(label_w + msg_w))
+    svg = svg.replace("{label_w}", str(label_w))
+    svg = svg.replace("{msg_w}", str(msg_w))
+    svg = svg.replace("{label_x}", str(label_w * 5))
+    svg = svg.replace("{msg_x}", str(label_w * 10 + msg_w * 5))
+    svg = svg.replace("{label_len}", str((label_w - 10) * 10))
+    svg = svg.replace("{msg_len}", str((msg_w - 10) * 10))
+    svg = svg.replace("{color}", grade_color(result.grade))
+    svg = svg.replace("{message}", message)
     out = Path(out_path)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(svg, encoding="utf-8")

@@ -2,17 +2,15 @@
 
 from __future__ import annotations
 
-import re
 import sys
 from pathlib import Path
 
 import pytest
-import yaml
 
 # Make src importable when running pytest from project root.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from skillcard.parser import SkillDoc
+from skillcard.parser import SkillDoc, parse_skill_text
 
 
 def make_skill_doc(
@@ -20,21 +18,10 @@ def make_skill_doc(
     body: str = "",
     raw: str | None = None,
 ) -> SkillDoc:
-    """Build a SkillDoc directly without touching disk."""
+    """Build a SkillDoc via the real parser (no duplicate parsing logic)."""
     if raw is None:
         raw = f"---\n{frontmatter}\n---\n\n{body}"
-    doc = SkillDoc(path=Path("test/SKILL.md"), raw=raw)
-    m = re.match(r"^---\s*\n(.*?)\n---\s*\n?(.*)$", raw, re.DOTALL)
-    if m:
-        fm_text, doc.body = m.group(1), m.group(2)
-        try:
-            doc.frontmatter = yaml.safe_load(fm_text) or {}
-        except yaml.YAMLError:
-            doc.frontmatter = {}
-    else:
-        doc.body = raw
-        doc.parse_errors.append("missing YAML frontmatter block")
-    return doc
+    return parse_skill_text(raw, path="test/SKILL.md")
 
 
 @pytest.fixture

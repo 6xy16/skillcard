@@ -37,25 +37,29 @@ def evaluate(path: str, use_llm: bool = True) -> EvalResult:
     if judge_cfg:
         l2 = run_l2(doc, judge_cfg)
         if l2:
-            result.judge_model = str(l2.pop("_model"))
-            result.judge_prompt_hash = str(l2.pop("_prompt_hash"))
-            rationale = str(l2.pop("_rationale", ""))
-            ambiguous = l2.pop("_ambiguous", [])
-            l2_warnings = list(l2.pop("_warnings", []))
+            result.judge_model = l2.model
+            result.judge_prompt_hash = l2.prompt_hash
+            l2_warnings = list(l2.warnings)
             labels = {
                 "trigger_accuracy": "Trigger accuracy",
                 "boundary_robustness": "Boundary robustness",
                 "instruction_clarity": "Instruction clarity",
                 "output_verifiability": "Output verifiability",
             }
+            scores = {
+                "trigger_accuracy": l2.trigger_accuracy,
+                "boundary_robustness": l2.boundary_robustness,
+                "instruction_clarity": l2.instruction_clarity,
+                "output_verifiability": l2.output_verifiability,
+            }
             for key, label in labels.items():
                 result.dimensions.append(
-                    Dimension(key=key, label=label, score=float(l2.get(key, 0)))
+                    Dimension(key=key, label=label, score=float(scores[key]))
                 )
-            if rationale:
-                result.warnings.append(f"judge rationale: {rationale}")
-            if ambiguous:
-                result.warnings.append(f"ambiguous probe ids: {ambiguous}")
+            if l2.rationale:
+                result.warnings.append(f"judge rationale: {l2.rationale}")
+            if l2.ambiguous:
+                result.warnings.append(f"ambiguous probe ids: {l2.ambiguous}")
         else:
             # L2 was configured but failed; treat as skipped with a warning.
             for key, label in [
@@ -85,8 +89,10 @@ def evaluate(path: str, use_llm: bool = True) -> EvalResult:
     # L3 - injection scan (security gate, not a scored dimension)
     injection = scan_injection(doc)
     result.injection_hits = injection.hits
-    if not injection.clean:
+    if injection.hits:
         result.warnings.append("injection patterns found: " + "; ".join(injection.hits))
+    for why in injection.soft_warnings:
+        result.warnings.append(f"possible injection wording (review): {why}")
 
     return result.finalize()
 

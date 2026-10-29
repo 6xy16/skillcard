@@ -19,7 +19,7 @@ from __future__ import annotations
 import json
 import os
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from skillcard.models import prompt_hash
 from skillcard.parser import SkillDoc
@@ -81,6 +81,21 @@ class JudgeConfig:
         )
 
 
+@dataclass
+class L2Result:
+    """Result of the optional LLM paper review."""
+
+    trigger_accuracy: float
+    boundary_robustness: float
+    instruction_clarity: float
+    output_verifiability: float
+    rationale: str = ""
+    ambiguous: list[int] = field(default_factory=list)
+    prompt_hash: str = ""
+    model: str = ""
+    warnings: list[str] = field(default_factory=list)
+
+
 def _chat(config: JudgeConfig, prompt: str) -> str:
     try:
         from openai import OpenAI
@@ -114,12 +129,8 @@ def _truncate_skill_text(raw: str, max_chars: int = 12000) -> str:
     return cut + "\n\n[... truncated ...]\n"
 
 
-def run_l2(doc: SkillDoc, config: JudgeConfig | None) -> dict[str, object] | None:
-    """Return {dimension: score} or None if L2 is disabled / unrecoverable.
-
-    The returned dict may carry auxiliary keys prefixed with "_":
-    _rationale, _ambiguous, _prompt_hash, _model, _warnings.
-    """
+def run_l2(doc: SkillDoc, config: JudgeConfig | None) -> L2Result | None:
+    """Return an L2Result, or None if L2 is disabled / unrecoverable."""
     if config is None:
         return None
 
@@ -156,14 +167,14 @@ def run_l2(doc: SkillDoc, config: JudgeConfig | None) -> dict[str, object] | Non
         warnings.append(f"could not parse judge JSON: {exc}")
         return None
 
-    return {
-        "trigger_accuracy": float(data.get("trigger_accuracy", 0)),
-        "boundary_robustness": float(data.get("boundary_robustness", 0)),
-        "instruction_clarity": float(data.get("instruction_clarity", 0)),
-        "output_verifiability": float(data.get("output_verifiability", 0)),
-        "_rationale": str(data.get("rationale", "")),
-        "_ambiguous": data.get("ambiguous_probes", []),
-        "_prompt_hash": prompt_hash(JUDGE_PROMPT_TEMPLATE),
-        "_model": config.model,
-        "_warnings": warnings,
-    }
+    return L2Result(
+        trigger_accuracy=float(data.get("trigger_accuracy", 0)),
+        boundary_robustness=float(data.get("boundary_robustness", 0)),
+        instruction_clarity=float(data.get("instruction_clarity", 0)),
+        output_verifiability=float(data.get("output_verifiability", 0)),
+        rationale=str(data.get("rationale", "")),
+        ambiguous=data.get("ambiguous_probes", []),
+        prompt_hash=prompt_hash(JUDGE_PROMPT_TEMPLATE),
+        model=config.model,
+        warnings=warnings,
+    )

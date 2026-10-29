@@ -19,7 +19,11 @@ TEXT = "#1f2328"
 MUTED = "#57606a"
 TRACK = "#e5e9ee"
 
-W, H = 680, 620
+W = 680
+HEADER_H = 190          # title + name + grade hero + score
+ROW_H = 52              # height per dimension row
+FOOTER_H = 110          # divider + judge line + watermark
+MIN_H = 620             # keep the original footprint for 5 rows
 
 
 _FONT_CANDIDATES = [
@@ -48,6 +52,11 @@ def _font(size: int) -> ImageFont.FreeTypeFont:
 
 
 def render_card(result: EvalResult, out_path: str | Path) -> Path:
+    # One row per dimension + one for the security gate. The canvas grows with
+    # the number of rows so bars never overflow or collide with the footer.
+    n_rows = len(result.dimensions) + 1
+    H = max(MIN_H, HEADER_H + n_rows * ROW_H + FOOTER_H)
+
     img = Image.new("RGB", (W, H), BG)
     d = ImageDraw.Draw(img)
     accent = grade_color(result.grade)
@@ -71,7 +80,7 @@ def render_card(result: EvalResult, out_path: str | Path) -> Path:
     d.text((W - 40 - score_w, 150), score_txt, font=f_score, fill=TEXT)
 
     # Dimension bars
-    y = 210
+    y = HEADER_H + 20
     bar_x, bar_w, bar_h = 250, 300, 14
     for dim in result.dimensions:
         d.text((40, y - 4), dim.label, font=f_dim, fill=TEXT)
@@ -82,7 +91,7 @@ def render_card(result: EvalResult, out_path: str | Path) -> Path:
             d.text((bar_x + bar_w + 16, y - 5), f"{dim.score:.0f}", font=f_dim, fill=TEXT)
         else:
             d.text((bar_x + bar_w + 16, y - 5), "n/a", font=f_dim, fill=MUTED)
-        y += 52
+        y += ROW_H
 
     # Security gate status (not a scored dimension, just a pass/fail marker)
     n_hits = len(result.injection_hits)
@@ -92,9 +101,9 @@ def render_card(result: EvalResult, out_path: str | Path) -> Path:
     else:
         msg = f"✗ {n_hits} pattern{'s' if n_hits != 1 else ''} found"
         d.text((bar_x, y - 5), msg, font=f_dim, fill="#cf222e")
-    y += 52
+    y += ROW_H
 
-    # Divider + footer
+    # Divider + footer (anchored to the bottom edge)
     d.line([(40, H - 90), (W - 40, H - 90)], fill=BORDER, width=1)
     d.text((40, H - 76), f"judge: {result.judge_model}", font=f_small, fill=MUTED)
     if result.judge_prompt_hash:

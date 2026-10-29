@@ -37,7 +37,7 @@ Three files in `./skillcard-report/`:
 | File | What |
 |------|------|
 | `card.png` | 680×620 shareable score card — big letter grade, dimension bars, security status |
-| `badge.svg` | shields.io-compatible static badge for your README |
+| `badge.svg` | shields-style static badge for your README |
 | `result.json` | Machine-readable result with judge model + prompt hash for reproducibility |
 
 Embed the badge in your README:
@@ -121,6 +121,12 @@ The skills ecosystem has millions of indexed skills and zero quality standards. 
 - **v0.1 (this)** — static checks + paper review, PNG card, static badge, improvement suggestions
 - **v0.2** — real agent runs (headless harness), dynamic badge endpoint, multi-model comparison
 - **v0.3** — batch scoring, diff between versions, opt-in leaderboard
+
+---
+
+## Contributing
+
+Bug reports and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for the local development setup and how to add a new check. For security issues, see [SECURITY.md](SECURITY.md).
 
 ---
 
