@@ -1,14 +1,10 @@
 # skillcard
 
-![grade](https://img.shields.io/badge/grade-A-brightgreen)
-![python](https://img.shields.io/badge/python-3.9%2B-blue)
-![status](https://img.shields.io/badge/status-alpha-orange)
-![license](https://img.shields.io/badge/license-MIT-green)
 [![CI](https://github.com/6xy16/skillcard/actions/workflows/test.yml/badge.svg)](https://github.com/6xy16/skillcard/actions/workflows/test.yml)
+![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
 
-**Quality score cards for Agent Skills.** Point it at a `SKILL.md`, get a beautiful score card and a README badge — plus a list of exactly what to fix to level up.
-
-给 Agent Skill（SKILL.md）生成质量评分卡和 README 徽章——让"晒分数"成为技能包生态的社交货币。
+Generate a score card and a README badge for a Skill's `SKILL.md`, along with a list of what to fix next.
 
 ![Skill Quality Card](docs/card.png)
 
@@ -32,13 +28,13 @@ badge: skillcard-report/badge.svg
 json:  skillcard-report/result.json
 ```
 
-Three files in `./skillcard-report/`:
+Three files land in `./skillcard-report/`:
 
-| File | What |
-|------|------|
-| `card.png` | 680×620 shareable score card — big letter grade, dimension bars, security status |
-| `badge.svg` | shields-style static badge for your README |
-| `result.json` | Machine-readable result with judge model + prompt hash for reproducibility |
+| File | What it is |
+|------|------------|
+| `card.png` | 680×620 score card with the letter grade, dimension bars, and security status |
+| `badge.svg` | static badge for your README |
+| `result.json` | machine-readable result, including the judge model and prompt hash for reproducibility |
 
 Embed the badge in your README:
 
@@ -83,43 +79,42 @@ export SKILLCARD_BASE_URL=https://...     # optional, any OpenAI-compatible endp
 
 ## How it works
 
-Three layers:
+There are three layers:
 
 ### L1 — Structure (deterministic, always on)
 10 checks: frontmatter validity, core fields, description length (CJK-aware), vague words, trigger clarity, examples, size, recommended fields, structured body, output verifiability.
 
 ### L2 — Paper review (LLM judge, optional)
-Auto-generates 10 probe requests (should-trigger / borderline / should-not-trigger) and scores 4 dimensions: trigger accuracy, boundary robustness, instruction clarity, output verifiability.
+Generates 10 probe requests (should-trigger / borderline / should-not-trigger) and scores 4 dimensions: trigger accuracy, boundary robustness, instruction clarity, output verifiability.
 
 ### L3 — Security gate (always on)
-Scans for prompt-injection and judge-gaming patterns. **Not a scored dimension — it's a gate:**
+Scans for prompt-injection and judge-gaming patterns. It's not a scored dimension, it's a gate:
+
 - 0 hits → grade is whatever your quality score says
 - 1 hit → grade capped at B
 - 2 hits → grade capped at D
-- 3+ hits → straight F
+- 3+ hits → F
 
-Security can't be "bought back" by high quality scores.
+A high quality score can't buy back a security hit.
 
 ---
 
 ## Why
 
-The skills ecosystem has millions of indexed skills and zero quality standards. Existing tools are internal linters for developers. skillcard is different: **the output is the product** — a card worth sharing, a badge worth embedding, and a clear list of what to fix next.
-
-技能包生态有百万级存量，但没有质量标准。现有工具都是给开发者自用的内部工具。skillcard 反过来：**输出物本身就是产品**——一张值得分享的评分卡，一个值得贴在 README 上的徽章，一份告诉你下一步怎么改的修复清单。
+There are a lot of skills out there and no shared quality bar. Existing tools are mostly internal linters aimed at developers. skillcard takes a different angle: the output is meant to be shared, not just consumed — a card worth posting, a badge worth embedding, and a concrete list of what to improve next.
 
 ---
 
 ## Grades
 
-`A (90+)  B (80+)  C (70+)  D (60+)  F (<60)` — the letter grade is the hero of the card.
+`A (90+)  B (80+)  C (70+)  D (60+)  F (<60)` — the letter grade is the main visual on the card.
 
 ---
 
 ## Roadmap
 
-- **v0.1 (this)** — static checks + paper review, PNG card, static badge, improvement suggestions
-- **v0.2** — real agent runs (headless harness), dynamic badge endpoint, multi-model comparison
+- **v0.1** — static checks + paper review, PNG card, static badge, improvement suggestions
+- **v0.2** — real agent runs, dynamic badge endpoint, multi-model comparison
 - **v0.3** — batch scoring, diff between versions, opt-in leaderboard
 
 ---
