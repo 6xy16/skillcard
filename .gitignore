@@ -9,6 +9,8 @@ dist/
 .ruff_cache/
 skillcard-report/
 *-report/
+.skillcard-cache/
+skillcard-batch/
 
 # Local secrets (keep a documented .env.example if needed)
 .env
@@ -20,3 +22,6 @@ skillcard-report/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Local workspace data (WorkBuddy project metadata)
+.workbuddy/

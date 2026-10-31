@@ -27,14 +27,21 @@ pytest tests/ -q
 
 ```
 src/skillcard/
-  cli.py            # entry point: orchestrates L1 -> L2 -> L3 -> render
+  cli.py            # entry point: orchestrates L1 -> L2 -> L3 -> L4 -> render
   parser.py         # lenient SKILL.md frontmatter + body parsing
   l1_structure.py   # deterministic structural checks (scored)
   l2_judge.py       # optional LLM paper review (scored)
   l3_injection.py   # prompt-injection security gate (caps the grade)
+  l4_execution.py   # optional dynamic execution (--run, runs the skill's code)
+  cache.py          # disk cache for L2 verdicts (skill+model+prompt keyed)
+  batch.py          # directory batch scan + snapshot diff
+  stability.py      # re-run the judge N times, report score variation
   models.py         # EvalResult, Dimension, grade mapping
   card.py           # PNG score card rendering
   badge.py          # SVG badge rendering
+benchmarks/
+  cases.yaml        # hand-annotated trigger/no_trigger/borderline probes
+  benchmark.py      # deterministic approximation + agreement statistics
 tests/
   conftest.py       # shared fixtures (reuses the real parser)
   test_*.py         # unit + end-to-end tests

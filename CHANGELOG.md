@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+
+### Features
+
+- **L4 dynamic execution** — `--run` executes a skill's code blocks in a local subprocess with a hard timeout and output cap, recording completion, exit code, duration, and (truncated) output. OFF by default because it runs untrusted code; see the README security warning.
+- **Trigger benchmark** — `benchmarks/` adds a small, hand-annotated trigger benchmark (good/mid/poor skills + labeled `trigger`/`no_trigger`/`borderline` probes) and a deterministic approximation scorer that reports accuracy and FP/FN rates. Reproducible via `python benchmarks/benchmark.py`.
+- **Batch evaluation + version diff** — `skillcard batch DIR` scores every SKILL.md in a directory into a diffable snapshot; `skillcard diff BEFORE AFTER` reports per-skill score/grade/failed-check/cost changes, regressions first.
+- **L2 cache** — `.skillcard-cache/` stores L2 verdicts keyed on skill text + model + prompt hash; unchanged skills re-score for free and bit-stably. Bypassed by the stability command.
+- **Stability experiment** — `skillcard stability FILE --runs N` re-runs the judge N times and reports per-dimension min/max/mean/stddev plus token and latency spread, quantifying LLM score nondeterminism.
+- **Stronger L2 validation** — judge score fields are strictly validated (must be numeric 0–100); missing/out-of-range fields are marked n/a instead of silently defaulting. Probe-generation failure marks only probe-dependent dimensions n/a. Full reproducibility metadata (probes, prompt hashes, raw verdict, base URL, timeout) is captured in `result.json`.
+
+### Docs
+
+- README rewritten around real output and real numbers: live `deepseek-chat` runs, a faithful terminal screenshot (regenerated via `docs/make_demo.py`), and measured stability figures (e.g. `instruction_clarity` ±4.0 points across 3 runs, `trigger_accuracy` ±0.0). Added `--no-cache` flag and documented cache hit behavior.
+
 ## v0.1.0 - 2026-10-29
 
 Initial alpha release.
