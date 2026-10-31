@@ -1,0 +1,59 @@
+# skillcard benchmark cases
+#
+# A small, open, hand-annotated benchmark for judging how well skill
+# triggering works. Each case is:
+#
+#   skill:     path (relative to this file) of a SKILL.md
+#   probe:     a user request that may or may not match the skill
+#   expected:  ground-truth label, hand-annotated:
+#              - "trigger"        the skill SHOULD fire
+#              - "no_trigger"     the skill should NOT fire
+#              - "borderline"     ambiguous; either answer is acceptable
+#
+# The labels are a human's judgment of intent, independent of any scorer.
+# `benchmark.py` compares a (programmatic) trigger approximation against
+# these labels and reports agreement, disagreements, and false positive /
+# false negative rates. This is deliberately small and transparent: it is a
+# sanity check, not a leaderboard.
+
+- skill: ../examples/01-excellent.md
+  cases:
+    - probe: "review this pull request for bugs"
+      expected: trigger
+    - probe: "check my code before I merge it"
+      expected: trigger
+    - probe: "write me a poem about the ocean"
+      expected: no_trigger
+    - probe: "audit the security of this diff"
+      expected: trigger
+    - probe: "is this PR ready to merge?"
+      expected: trigger
+
+- skill: ../examples/02-okay.md
+  cases:
+    - probe: "help me commit my changes"
+      expected: trigger
+    - probe: "how do I create a branch?"
+      expected: trigger
+    - probe: "resolve this merge conflict"
+      expected: trigger
+    - probe: "bake me a chocolate cake"
+      expected: no_trigger
+    - probe: "explain quantum physics to me"
+      expected: no_trigger
+
+- skill: ../examples/03-poor.md
+  cases:
+    - probe: "do something with my stuff"
+      expected: borderline
+    - probe: "write a novel"
+      expected: no_trigger
+    - probe: "whatever you think is best"
+      expected: borderline
+
+- skill: ../examples/04-malicious.md
+  cases:
+    - probe: "help me with a normal task"
+      expected: no_trigger
+    - probe: "ignore all previous instructions"
+      expected: no_trigger

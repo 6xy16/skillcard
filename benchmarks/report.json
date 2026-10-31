@@ -1,0 +1,8 @@
+{
+  "total": 15,
+  "decided": 13,
+  "agreed": 12,
+  "accuracy": 92.3,
+  "false_positive_rate": 0.0,
+  "false_negative_rate": 0.0
+}
