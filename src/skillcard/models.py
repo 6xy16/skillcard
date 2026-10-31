@@ -43,6 +43,12 @@ class EvalResult:
     judge_prompt_hash: str = ""
     eval_version: str = "v1.0"
     warnings: list[str] = field(default_factory=list)
+    # L2 cost / latency accounting (populated only when LLM review runs).
+    judge_duration_seconds: float | None = None
+    judge_prompt_tokens: int | None = None
+    judge_completion_tokens: int | None = None
+    judge_total_tokens: int | None = None
+    judge_retries: int | None = None
 
     # Weights per quality dimension. Security is a gate, not a scored dimension.
     DIMENSION_WEIGHTS: ClassVar[dict[str, float]] = {

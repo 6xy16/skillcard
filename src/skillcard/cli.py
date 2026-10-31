@@ -39,6 +39,11 @@ def evaluate(path: str, use_llm: bool = True) -> EvalResult:
         if l2:
             result.judge_model = l2.model
             result.judge_prompt_hash = l2.prompt_hash
+            result.judge_duration_seconds = l2.duration_seconds
+            result.judge_prompt_tokens = l2.prompt_tokens
+            result.judge_completion_tokens = l2.completion_tokens
+            result.judge_total_tokens = l2.total_tokens
+            result.judge_retries = l2.retries
             l2_warnings = list(l2.warnings)
             labels = {
                 "trigger_accuracy": "Trigger accuracy",
