@@ -49,6 +49,23 @@ class EvalResult:
     judge_completion_tokens: int | None = None
     judge_total_tokens: int | None = None
     judge_retries: int | None = None
+    # L2 reproducibility (full context to re-run the same evaluation).
+    judge_base_url: str = ""
+    judge_timeout: float | None = None
+    judge_probe_prompt_hash: str = ""
+    judge_probes: list[str] = field(default_factory=list)
+    judge_raw_verdict: str = ""
+    # L4 dynamic execution (populated only when --run is passed).
+    run_executed: bool = False
+    run_runtime: str = ""
+    run_completed: bool = False
+    run_exit_code: int | None = None
+    run_timed_out: bool = False
+    run_duration_seconds: float = 0.0
+    run_stdout: str = ""
+    run_stderr: str = ""
+    run_truncated: bool = False
+    run_command: list[str] = field(default_factory=list)
 
     # Weights per quality dimension. Security is a gate, not a scored dimension.
     DIMENSION_WEIGHTS: ClassVar[dict[str, float]] = {

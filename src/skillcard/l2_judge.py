@@ -109,16 +109,27 @@ class JudgeConfig:
 
 @dataclass
 class L2Result:
-    """Result of the optional LLM paper review."""
+    """Result of the optional LLM paper review.
 
-    trigger_accuracy: float
-    boundary_robustness: float
-    instruction_clarity: float
-    output_verifiability: float
+    A dimension score of ``None`` means "not scored" — either the field was
+    missing from the judge's response, or (for trigger/boundary) probe
+    generation failed so there was no basis to judge those two dimensions.
+    """
+
+    trigger_accuracy: float | None = None
+    boundary_robustness: float | None = None
+    instruction_clarity: float | None = None
+    output_verifiability: float | None = None
     rationale: str = ""
     ambiguous: list[int] = field(default_factory=list)
     prompt_hash: str = ""
+    probe_prompt_hash: str = ""
     model: str = ""
+    base_url: str = ""
+    timeout: float = DEFAULT_TIMEOUT_SECONDS
+    # Raw inputs/outputs kept for full reproducibility of a single evaluation.
+    probes: list[str] = field(default_factory=list)
+    raw_verdict: str = ""
     warnings: list[str] = field(default_factory=list)
     # Cost / latency accounting — what makes "LLM judge" defensible in an interview.
     duration_seconds: float = 0.0
@@ -126,6 +137,8 @@ class L2Result:
     completion_tokens: int = 0
     total_tokens: int = 0
     retries: int = 0
+    # Set by the caching layer when the verdict was served from disk.
+    from_cache: bool = False
 
 
 def _chat(config: JudgeConfig, prompt: str) -> tuple[str, dict, float, int]:
@@ -183,6 +196,49 @@ def _extract_json(text: str) -> dict:
     return json.loads(m.group(0))
 
 
+# The four scored dimensions and the key the judge returns for each.
+_SCORE_FIELDS = (
+    "trigger_accuracy",
+    "boundary_robustness",
+    "instruction_clarity",
+    "output_verifiability",
+)
+
+# Dimensions that depend on generated probes. If probe generation fails, these
+# have no evaluation basis and must be marked n/a rather than scored.
+_PROBE_DEPENDENT_FIELDS = ("trigger_accuracy", "boundary_robustness")
+
+
+def _validate_verdict(data: dict) -> dict[str, float | None]:
+    """Validate the judge's score fields and return only valid ones.
+
+    A field is valid iff it is present and a finite number in [0, 100].
+    Missing / non-numeric / out-of-range fields come back as ``None`` (n/a)
+    rather than silently defaulting to 0 — a bogus 0 would corrupt the
+    weighted total and produce a misleading grade.
+    """
+    scores: dict[str, float | None] = {}
+    for key in _SCORE_FIELDS:
+        raw = data.get(key)
+        if raw is None:
+            scores[key] = None
+            continue
+        try:
+            value = float(raw)
+        except (TypeError, ValueError):
+            scores[key] = None
+            continue
+        if not 0 <= value <= 100:
+            scores[key] = None
+            continue
+        scores[key] = value
+    return scores
+
+
+def _has_any_score(scores: dict[str, float | None]) -> bool:
+    return any(v is not None for v in scores.values())
+
+
 def _truncate_skill_text(raw: str, max_chars: int = 12000) -> str:
     """Truncate to max_chars, but cut at a line boundary and mark the truncation."""
     if len(raw) <= max_chars:
@@ -209,22 +265,35 @@ def run_l2(doc: SkillDoc, config: JudgeConfig | None) -> L2Result | None:
     total_completion_tokens = 0
     total_retries = 0
 
-    # Step 1: generate probes
+    # Step 1: generate probes. Failure is tolerated, but the two
+    # probe-dependent dimensions are then marked n/a (see below).
+    probes: list[str] = []
+    probes_failed = False
     try:
-        probes_raw, usage, elapsed, retries = _chat(config, PROBE_GEN_TEMPLATE.format(skill_text=skill_text))
+        probes_raw, usage, elapsed, retries = _chat(
+            config, PROBE_GEN_TEMPLATE.format(skill_text=skill_text)
+        )
         total_elapsed += elapsed
         total_prompt_tokens += usage.get("prompt_tokens", 0)
         total_completion_tokens += usage.get("completion_tokens", 0)
         total_retries += retries
         m = re.search(r"\[.*\]", probes_raw, re.DOTALL)
         if m:
-            probes = json.loads(m.group(0))
+            parsed = json.loads(m.group(0))
+            if isinstance(parsed, list) and all(isinstance(p, str) for p in parsed):
+                probes = parsed
+            else:
+                probes_failed = True
+                warnings.append("probe generation returned a non-string list; probe-based dims marked n/a")
         else:
-            probes = []
-            warnings.append("probe generation returned no JSON array; continuing without probes")
-    except Exception as exc:  # noqa: BLE001 - optional LLM review falls back to L1
-        probes = []
-        warnings.append(f"probe generation failed ({exc}); continuing without probes")
+            probes_failed = True
+            warnings.append("probe generation returned no JSON array; probe-based dims marked n/a")
+    except Exception as exc:  # noqa: BLE001 - probe failure degrades, not fatal
+        probes_failed = True
+        warnings.append(f"probe generation failed ({exc}); probe-based dims marked n/a")
+
+    if not probes:
+        probes_failed = True
 
     probe_text = "\n".join(f"{i + 1}. {p}" for i, p in enumerate(probes)) or "(none generated)"
 
@@ -247,15 +316,35 @@ def run_l2(doc: SkillDoc, config: JudgeConfig | None) -> L2Result | None:
         warnings.append(f"could not parse judge JSON: {exc}")
         return None
 
-    return L2Result(
-        trigger_accuracy=float(data.get("trigger_accuracy", 0)),
-        boundary_robustness=float(data.get("boundary_robustness", 0)),
-        instruction_clarity=float(data.get("instruction_clarity", 0)),
-        output_verifiability=float(data.get("output_verifiability", 0)),
+    # Validate the score fields. Invalid/missing fields become None (n/a).
+    scores = _validate_verdict(data)
+
+    # If probes failed, the two probe-dependent dimensions have no basis.
+    if probes_failed:
+        for key in _PROBE_DEPENDENT_FIELDS:
+            if scores.get(key) is not None:
+                scores[key] = None
+                warnings.append(f"{key} marked n/a: no probes available to evaluate it")
+
+    # If every scored dimension ended up invalid, the whole verdict is unusable.
+    if not _has_any_score(scores):
+        warnings.append("judge returned no valid scores; L2 result discarded")
+        return None
+
+    result = L2Result(
+        trigger_accuracy=scores["trigger_accuracy"],
+        boundary_robustness=scores["boundary_robustness"],
+        instruction_clarity=scores["instruction_clarity"],
+        output_verifiability=scores["output_verifiability"],
         rationale=str(data.get("rationale", "")),
-        ambiguous=data.get("ambiguous_probes", []),
+        ambiguous=list(data.get("ambiguous_probes", []) or []),
         prompt_hash=prompt_hash(JUDGE_PROMPT_TEMPLATE),
+        probe_prompt_hash=prompt_hash(PROBE_GEN_TEMPLATE),
         model=config.model,
+        base_url=config.base_url,
+        timeout=config.timeout,
+        probes=probes,
+        raw_verdict=verdict,
         warnings=warnings,
         duration_seconds=round(total_elapsed, 2),
         prompt_tokens=total_prompt_tokens,
@@ -263,3 +352,4 @@ def run_l2(doc: SkillDoc, config: JudgeConfig | None) -> L2Result | None:
         total_tokens=total_prompt_tokens + total_completion_tokens,
         retries=total_retries,
     )
+    return result

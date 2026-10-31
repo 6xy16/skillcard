@@ -129,7 +129,7 @@ def test_run_l2_success_aggregates_accounting(monkeypatch, good_skill):
     assert result.retries == 0
 
 
-def test_run_l2_probe_generation_failure_continues_without_probes(monkeypatch, good_skill):
+def test_run_l2_probe_generation_failure_marks_probe_dims_na(monkeypatch, good_skill):
     def fake_chat(config, prompt):
         if "generate 10 short user requests" in prompt:
             raise TimeoutError("probe gen failed")
@@ -138,9 +138,14 @@ def test_run_l2_probe_generation_failure_continues_without_probes(monkeypatch, g
     monkeypatch.setattr("skillcard.l2_judge._chat", fake_chat)
     result = run_l2(good_skill, _cfg())
     assert result is not None
-    assert result.trigger_accuracy == 85
+    # Probe-dependent dimensions have no basis -> n/a.
+    assert result.trigger_accuracy is None
+    assert result.boundary_robustness is None
+    # Probe-independent dimensions are still scored.
+    assert result.instruction_clarity == 90
+    assert result.output_verifiability == 80
     # Probe-gen failure is surfaced as a warning, not a fatal error.
-    assert any("probe generation failed" in w for w in result.warnings)
+    assert any("probe" in w for w in result.warnings)
 
 
 def test_run_l2_verdict_failure_returns_none(monkeypatch, good_skill):
@@ -161,6 +166,59 @@ def test_run_l2_unparseable_json_returns_none(monkeypatch, good_skill):
 
     monkeypatch.setattr("skillcard.l2_judge._chat", fake_chat)
     assert run_l2(good_skill, _cfg()) is None
+
+
+def _run_with_verdict(monkeypatch, good_skill, verdict_json):
+    """Run L2 with probe-gen succeeding and a fixed verdict JSON."""
+    def fake_chat(config, prompt):
+        if "generate 10 short user requests" in prompt:
+            return '["p1", "p2", "p3"]', _USAGE, 1.0, 0
+        return verdict_json, _USAGE, 1.0, 0
+
+    monkeypatch.setattr("skillcard.l2_judge._chat", fake_chat)
+    return run_l2(good_skill, _cfg())
+
+
+def test_run_l2_missing_field_becomes_na(monkeypatch, good_skill):
+    # trigger_accuracy and output_verifiability are missing.
+    verdict = '{"boundary_robustness": 70, "instruction_clarity": 90}'
+    result = _run_with_verdict(monkeypatch, good_skill, verdict)
+    assert result is not None
+    assert result.trigger_accuracy is None
+    assert result.output_verifiability is None
+    assert result.boundary_robustness == 70
+    assert result.instruction_clarity == 90
+
+
+def test_run_l2_out_of_range_score_becomes_na(monkeypatch, good_skill):
+    verdict = (
+        '{"trigger_accuracy": 150, "boundary_robustness": 70, '
+        '"instruction_clarity": 90, "output_verifiability": -5}'
+    )
+    result = _run_with_verdict(monkeypatch, good_skill, verdict)
+    assert result is not None
+    assert result.trigger_accuracy is None  # 150 out of range
+    assert result.output_verifiability is None  # -5 out of range
+    assert result.boundary_robustness == 70
+    assert result.instruction_clarity == 90
+
+
+def test_run_l2_all_invalid_scores_discarded(monkeypatch, good_skill):
+    verdict = '{"trigger_accuracy": 150, "boundary_robustness": "high"}'
+    assert _run_with_verdict(monkeypatch, good_skill, verdict) is None
+
+
+def test_run_l2_records_reproducibility_fields(monkeypatch, good_skill):
+    result = _run_with_verdict(monkeypatch, good_skill, _VERDICT_JSON)
+    assert result is not None
+    # Probe list, probe prompt hash, and raw verdict are all preserved.
+    assert result.probes == ["p1", "p2", "p3"]
+    assert result.probe_prompt_hash
+    assert result.raw_verdict == _VERDICT_JSON
+    # Full model params captured so the run can be reproduced.
+    assert result.model == "gpt-4o-mini"
+    assert result.base_url == "https://api.openai.com/v1"
+    assert result.timeout > 0
 
 
 # --- minimal fakes for the OpenAI SDK surface ---
