@@ -1,10 +1,18 @@
 # skillcard
 
 [![CI](https://github.com/6xy16/skillcard/actions/workflows/test.yml/badge.svg)](https://github.com/6xy16/skillcard/actions/workflows/test.yml)
-![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue)
-![License](https://img.shields.io/badge/license-MIT-green)
+[![License](https://img.shields.io/github/license/6xy16/skillcard)](LICENSE)
+![skillcard](docs/badge.svg)
 
 Generate a score card and a README badge for a Skill's `SKILL.md`, along with a list of what to fix next.
+
+```console
+$ skillcard examples/01-excellent.md --no-llm
+```
+
+![demo](docs/demo.png)
+
+The score card it produces:
 
 ![Skill Quality Card](docs/card.png)
 
